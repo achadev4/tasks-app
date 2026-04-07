@@ -1,0 +1,33 @@
+{
+  "name": "@tasks-app/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w --preserveWatchOutput",
+    "prestart": "npm run build",
+    "start": "func start",
+    "dev": "concurrently -k -n build,func -c yellow,cyan \"npm run watch\" \"func start --port 7071\"",
+    "lint": "echo \"no lint configured\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.1",
+    "@azure/identity": "^4.7.0",
+    "@azure/storage-blob": "^12.26.0",
+    "@tasks-app/shared": "file:../packages/shared",
+    "busboy": "^1.6.0",
+    "jose": "^5.9.6",
+    "mssql": "^11.0.1",
+    "uuid": "^11.0.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "@types/mssql": "^9.1.5",
+    "@types/node": "^22.10.7",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.azure/
+*.log
+.DS_Store
+.env
+.env.local
+api/local.settings.json
+client/.env
+client/.env.local
+*.bicepparam.user
+.vscode/settings.json

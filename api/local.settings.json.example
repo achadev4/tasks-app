@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_AD_TENANT_ID": "your-tenant-id",
+    "AZURE_AD_AUDIENCE": "your-api-app-client-id",
+    "SQL_CONNECTION_STRING": "Server=localhost;Database=tasks;User Id=...;Password=...;Encrypt=true",
+    "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=...",
+    "TASKS_BLOB_CONTAINER": "task-attachments",
+    "ALLOW_LOCAL_AUTH_BYPASS": "false"
+  }
+}

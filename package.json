@@ -1,0 +1,18 @@
+{
+  "name": "tasks-app",
+  "private": true,
+  "workspaces": [
+    "client",
+    "api",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "concurrently -n client,api -c blue,green \"npm run dev -w client\" \"npm run dev -w api\"",
+    "build": "npm run build -w packages/shared && npm run build -w api && npm run build -w client && node scripts/pack-shared-for-api.mjs",
+    "build:swa": "npm run build",
+    "lint": "npm run lint -w client --if-present && npm run lint -w api --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

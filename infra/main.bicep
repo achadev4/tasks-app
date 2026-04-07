@@ -183,7 +183,6 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
     name: 'FC1'
     tier: 'FlexConsumption'
   }
-  kind: 'functionapp'
   properties: {
     reserved: true
   }

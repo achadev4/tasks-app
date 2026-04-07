@@ -6,6 +6,9 @@ param namePrefix string = 'tasks'
 @description('Primary Azure region')
 param location string = resourceGroup().location
 
+@description('Secondary Azure region')
+param secondaryLocation string = 'centralus'
+
 @description('SQL administrator login')
 param sqlAdminLogin string
 
@@ -256,7 +259,7 @@ resource diagFunc 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
 
 resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
   name: swaName
-  location: location
+  location: secondaryLocation
   sku: {
     name: 'Standard'
     tier: 'Standard'

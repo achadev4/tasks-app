@@ -13,6 +13,11 @@ on:
         required: true
         default: southcentralus
         type: string
+      secondary_location:
+        description: Azure region for resources not available in the primary location
+        required: true
+        default: centralus
+        type: string
       name_prefix:
         description: Resource name prefix (see infra/main.bicep)
         required: true

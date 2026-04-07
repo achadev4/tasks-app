@@ -171,8 +171,8 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${namePrefix}-plan-${uniqueSuffix}'
   location: location
   sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
+    name: 'F1'
+    tier: 'Free'
   }
   properties: {
     reserved: false

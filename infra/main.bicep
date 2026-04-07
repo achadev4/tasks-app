@@ -79,7 +79,7 @@ resource attachmentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
   }
 }
 
-resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
+resource sqlServer 'Microsoft.Sql/servers@2025-02-01-preview' = {
   name: sqlServerName
   location: location
   properties: {
@@ -91,7 +91,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   }
 }
 
-resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
+resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2025-02-01-preview' = {
   parent: sqlServer
   name: 'AllowAzureServices'
   properties: {
@@ -100,7 +100,7 @@ resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01-previe
   }
 }
 
-resource sqlDb 'Microsoft.Sql/databases@2023-08-01-preview' = {
+resource sqlDb 'Microsoft.Sql/servers/databases@2025-02-01-preview' = {
   parent: sqlServer
   name: sqlDbName
   location: location

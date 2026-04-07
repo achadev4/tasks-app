@@ -6,11 +6,12 @@ on:
       resource_group:
         description: Azure resource group name (created if it does not exist)
         required: true
+        default: rg-tasks
         type: string
       location:
         description: Azure region for the resource group (if creating) and deployment
         required: true
-        default: eastus
+        default: southcentralus
         type: string
       name_prefix:
         description: Resource name prefix (see infra/main.bicep)

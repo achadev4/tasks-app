@@ -175,14 +175,14 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
     tier: 'Dynamic'
   }
   properties: {
-    reserved: false
+    reserved: true
   }
 }
 
 resource func 'Microsoft.Web/sites@2023-12-01' = {
   name: funcAppName
   location: location
-  kind: 'functionapp'
+  kind: 'functionapp,linux'
   identity: {
     type: 'SystemAssigned'
   }
@@ -192,19 +192,10 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
     siteConfig: {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
-      use32BitWorkerProcess: false
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
           value: storageConn
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: storageConn
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(replace(funcAppName, '-', ''))
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'

@@ -54,7 +54,7 @@ jobs:
 
       - name: Deploy Bicep
         env:
-        
+          SQL_CONNECTION_STRING: ${{ secrets.SQL_CONNECTION_STRING }}
           API_APP_CLIENT_ID: ${{ secrets.API_APP_CLIENT_ID }}
         run: |
           set -euo pipefail
@@ -64,6 +64,7 @@ jobs:
             --template-file infra/main.bicep \
             --parameters \
               namePrefix="${{ github.event.inputs.name_prefix }}" \
+               sqlConnectionString="${SQL_CONNECTION_STRING}" \
               apiAppClientId="${API_APP_CLIENT_ID}"
 
       - name: Show deployment outputs

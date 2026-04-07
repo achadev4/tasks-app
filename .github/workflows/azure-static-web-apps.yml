@@ -1,13 +1,20 @@
 name: Azure Static Web Apps CI/CD
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: The branch or tag to deploy
+        required: false
+        default: main
+        type: string
+  # pull_request:
+  #   types: [opened, synchronize, reopened, closed]
+  #   branches:
+  #     - main
 
 jobs:
   build_and_deploy:

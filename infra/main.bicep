@@ -141,6 +141,22 @@ resource secretSql 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   }
 }
 
+resource secretSqlLogin 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'SqlAdminLogin'
+  properties: {
+    value: sqlAdminLogin
+  }
+}
+
+resource secretSqlPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'SqlAdminPassword'
+  properties: {
+    value: sqlAdminPassword
+  }
+}
+
 var storageConn = 'DefaultEndpointsProtocol=https;AccountName=${stg.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${stg.listKeys().keys[0].value}'
 
 resource secretStorage 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {

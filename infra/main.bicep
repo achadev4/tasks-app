@@ -170,13 +170,12 @@ resource secretStorage 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${namePrefix}-plan-${uniqueSuffix}'
   location: location
+  kind: 'functionapp'
   sku: {
-    name: 'F1'
-    tier: 'Free'
+    name: 'Y1' // Consumption Plan SKU
+    tier: 'Dynamic'
   }
-  properties: {
-    reserved: true
-  }
+  properties: {}
 }
 
 resource func 'Microsoft.Web/sites@2023-12-01' = {

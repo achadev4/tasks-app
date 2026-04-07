@@ -12,6 +12,9 @@ param tenantId string = subscription().tenantId
 @description('Entra app registration client ID for the API (JWT audience for the Function App)')
 param apiAppClientId string
 
+@description('SQL connection string for the manually-created Azure SQL free-tier database')
+param sqlConnectionString string
+
 var uniqueSuffix = uniqueString(resourceGroup().id, namePrefix)
 var storageName = toLower('${take(namePrefix, 8)}st${uniqueSuffix}')
 var funcAppName = '${namePrefix}-func-${uniqueSuffix}'
@@ -97,13 +100,13 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-// resource secretSql 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-//   parent: kv
-//   name: 'SqlConnectionString'
-//   properties: {
-//     value: sqlConnectionString
-//   }
-// }
+resource secretSql 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'SqlConnectionString'
+  properties: {
+    value: sqlConnectionString
+  }
+}
 
 var storageConn = 'DefaultEndpointsProtocol=https;AccountName=${stg.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${stg.listKeys().keys[0].value}'
 
@@ -182,10 +185,10 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
           name: 'TASKS_BLOB_CONTAINER'
           value: blobContainerName
         }
-        // {
-        //   name: 'SQL_CONNECTION_STRING'
-        //   value: sqlConnectionString
-        // }
+        {
+          name: 'SQL_CONNECTION_STRING'
+          value: sqlConnectionString
+        }
         {
           name: 'AZURE_STORAGE_CONNECTION_STRING'
           value: storageConn

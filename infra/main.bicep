@@ -281,7 +281,7 @@ resource diagFunc 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
 
 resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
   name: swaName
-  location: 'eastus2'
+  location: location
   sku: {
     name: 'Standard'
     tier: 'Standard'

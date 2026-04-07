@@ -11,7 +11,7 @@ on:
       location:
         description: Azure region for the resource group (if creating) and deployment
         required: true
-        default: eastus
+        default: eastus2
         type: string
       name_prefix:
         description: Resource name prefix (see infra/main.bicep)

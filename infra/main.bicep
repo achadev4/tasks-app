@@ -178,6 +178,7 @@ resource secretStorage 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${namePrefix}-plan-${uniqueSuffix}'
   location: location
+  kind: 'functionapp'
   sku: {
     name: 'FC1'
     tier: 'FlexConsumption'

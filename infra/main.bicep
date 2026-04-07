@@ -79,6 +79,14 @@ resource attachmentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
   }
 }
 
+resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobSvc
+  name: 'deployments'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 resource sqlServer 'Microsoft.Sql/servers@2025-02-01-preview' = {
   name: sqlServerName
   location: location
@@ -171,9 +179,10 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${namePrefix}-plan-${uniqueSuffix}'
   location: location
   sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
+    name: 'FC1'
+    tier: 'FlexConsumption'
   }
+  kind: 'functionapp'
   properties: {
     reserved: true
   }
@@ -189,6 +198,26 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${stg.properties.primaryEndpoints.blob}deployments'
+          authentication: {
+            type: 'StorageAccountConnectionString'
+            storageAccountConnectionStringName: 'AzureWebJobsStorage'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 10
+        instanceMemoryMB: 2048
+      }
+      runtime: {
+        name: 'node'
+        version: '20'
+      }
+    }
     siteConfig: {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
@@ -196,18 +225,6 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AzureWebJobsStorage'
           value: storageConn
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'node'
-        }
-        {
-          name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~20'
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -238,6 +255,7 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
   }
   dependsOn: [
     sqlDb
+    deploymentsContainer
   ]
 }
 

@@ -6,12 +6,9 @@ param namePrefix string = 'tasks'
 @description('Primary Azure region')
 param location string = resourceGroup().location
 
-@description('SQL administrator login')
-param sqlAdminLogin string
-
 @secure()
-@description('SQL administrator password')
-param sqlAdminPassword string
+@description('SQL connection string for the manually-created Azure SQL free-tier database')
+param sqlConnectionString string
 
 @description('Azure AD tenant ID (for Key Vault and auth config)')
 param tenantId string = subscription().tenantId
@@ -26,8 +23,6 @@ var swaName = '${namePrefix}-swa-${uniqueSuffix}'
 var kvName = 'kv${uniqueString(resourceGroup().id, namePrefix)}'
 var lawName = '${namePrefix}-law-${uniqueSuffix}'
 var aiName = '${namePrefix}-ai-${uniqueSuffix}'
-var sqlServerName = '${namePrefix}-sql-${uniqueSuffix}'
-var sqlDbName = 'tasks'
 var blobContainerName = 'task-attachments'
 
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -87,41 +82,6 @@ resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
   }
 }
 
-resource sqlServer 'Microsoft.Sql/servers@2025-02-01-preview' = {
-  name: sqlServerName
-  location: location
-  properties: {
-    administratorLogin: sqlAdminLogin
-    administratorLoginPassword: sqlAdminPassword
-    version: '12.0'
-    minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
-resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2025-02-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
-resource sqlDb 'Microsoft.Sql/servers/databases@2025-02-01-preview' = {
-  parent: sqlServer
-  name: sqlDbName
-  location: location
-  sku: {
-    name: 'Basic'
-    tier: 'Basic'
-  }
-  properties: {
-    collation: 'SQL_Latin1_General_CP1_CI_AS'
-  }
-}
-
-var sqlConn = 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};User ID=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
 
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: kvName
@@ -145,23 +105,7 @@ resource secretSql 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: kv
   name: 'SqlConnectionString'
   properties: {
-    value: sqlConn
-  }
-}
-
-resource secretSqlLogin 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
-  name: 'SqlAdminLogin'
-  properties: {
-    value: sqlAdminLogin
-  }
-}
-
-resource secretSqlPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
-  name: 'SqlAdminPassword'
-  properties: {
-    value: sqlAdminPassword
+    value: sqlConnectionString
   }
 }
 
@@ -244,7 +188,7 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'SQL_CONNECTION_STRING'
-          value: sqlConn
+          value: sqlConnectionString
         }
         {
           name: 'AZURE_STORAGE_CONNECTION_STRING'
@@ -254,7 +198,6 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
     }
   }
   dependsOn: [
-    sqlDb
     deploymentsContainer
   ]
 }
@@ -309,5 +252,4 @@ output functionAppName string = func.name
 output keyVaultName string = kv.name
 output logAnalyticsWorkspaceId string = law.id
 output applicationInsightsConnectionString string = appInsights.properties.ConnectionString
-output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output storageAccountName string = stg.name

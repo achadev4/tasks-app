@@ -16,13 +16,15 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
-    name: Build and deploy
-    permissions:
-      contents: read
-      pull-requests: write
+    name: Build
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +42,29 @@ jobs:
           VITE_AZURE_AD_CLIENT_ID: ${{ secrets.VITE_AZURE_AD_CLIENT_ID }}
         run: npm ci && npm run build
 
+      - name: Upload client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist/
+
+      - name: Upload api artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: api/
+
+  deploy_swa:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Deploy SWA (frontend)
+    steps:
+      - name: Download client artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist/
+
       - name: Deploy to Azure Static Web Apps
         id: deploy
         uses: Azure/static-web-apps-deploy@v1
@@ -48,9 +73,32 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: client/dist/
-          api_location: api
           skip_app_build: true
-          skip_api_build: true
+
+  deploy_api:
+    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    name: Deploy Function App (API)
+    steps:
+      - name: Download api artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api-dist
+          path: api/
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
+          package: api/
 
   close_pull_request:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

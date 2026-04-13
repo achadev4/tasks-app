@@ -48,11 +48,35 @@ jobs:
           name: client-dist
           path: client/dist/
 
+      - name: Prepare API deployment package
+        run: |
+          mkdir api-deploy
+          cp api/host.json api-deploy/
+          cp api/package.json api-deploy/
+          cp -r api/dist api-deploy/
+
+          # Rewrite package.json: remove workspace file: reference and devDependencies
+          node -e "
+            const pkg = JSON.parse(require('fs').readFileSync('api-deploy/package.json', 'utf8'));
+            delete pkg.dependencies['@tasks-app/shared'];
+            pkg.devDependencies = {};
+            require('fs').writeFileSync('api-deploy/package.json', JSON.stringify(pkg, null, 2));
+          "
+
+          # Install production deps outside the workspace context
+          cd api-deploy
+          npm install --omit=dev
+
+          # Copy the pre-built shared package
+          mkdir -p node_modules/@tasks-app/shared
+          cp -r ../packages/shared/dist node_modules/@tasks-app/shared/
+          cp ../packages/shared/package.json node_modules/@tasks-app/shared/
+
       - name: Upload api artifact
         uses: actions/upload-artifact@v4
         with:
           name: api-dist
-          path: api/
+          path: api-deploy/
 
   deploy_swa:
     needs: build
@@ -85,7 +109,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: api-dist
-          path: api/
+          path: api-deploy/
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -98,7 +122,7 @@ jobs:
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
-          package: api/
+          package: api-deploy/
 
   close_pull_request:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

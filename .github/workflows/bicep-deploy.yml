@@ -3,10 +3,19 @@ name: Deploy infrastructure (Bicep)
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: Target environment (dev, qa, stg, prod)
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - stg
+          - prod
       resource_group:
         description: Azure resource group name (created if it does not exist)
         required: true
-        default: rg-tasks
+        default: rg-tasks-prod
         type: string
       location:
         description: Azure region for the resource group (if creating) and deployment
@@ -52,10 +61,20 @@ jobs:
             --location "${{ github.event.inputs.location }}" \
             --output none
 
+      - name: Set environment suffix
+        id: env-suffix
+        run: |
+          case "${{ github.event.inputs.environment }}" in
+            dev) echo "suffix=DEV" >> $GITHUB_OUTPUT ;;
+            qa) echo "suffix=QA" >> $GITHUB_OUTPUT ;;
+            stg) echo "suffix=STG" >> $GITHUB_OUTPUT ;;
+            prod) echo "suffix=PROD" >> $GITHUB_OUTPUT ;;
+          esac
+
       - name: Deploy Bicep
         env:
-          SQL_CONNECTION_STRING: ${{ secrets.SQL_CONNECTION_STRING }}
-          API_APP_CLIENT_ID: ${{ secrets.API_APP_CLIENT_ID }}
+          SQL_CONNECTION_STRING: ${{ secrets[format('SQL_CONNECTION_STRING_{0}', steps.env-suffix.outputs.suffix)] }}
+          API_APP_CLIENT_ID: ${{ secrets[format('API_APP_CLIENT_ID_{0}', steps.env-suffix.outputs.suffix)] }}
         run: |
           set -euo pipefail
           az deployment group create \
@@ -63,8 +82,9 @@ jobs:
             --name "bicep-${{ github.run_id }}" \
             --template-file infra/main.bicep \
             --parameters \
+              environment="${{ github.event.inputs.environment }}" \
               namePrefix="${{ github.event.inputs.name_prefix }}" \
-               sqlConnectionString="${SQL_CONNECTION_STRING}" \
+              sqlConnectionString="${SQL_CONNECTION_STRING}" \
               apiAppClientId="${API_APP_CLIENT_ID}"
 
       - name: Show deployment outputs

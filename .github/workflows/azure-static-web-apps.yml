@@ -22,9 +22,40 @@ permissions:
   pull-requests: write
 
 jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    name: Determine target environment
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      env_suffix: ${{ steps.set-env.outputs.env_suffix }}
+    steps:
+      - name: Determine environment from branch
+        id: set-env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "env_suffix=DEV" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/qa" ]]; then
+            echo "environment=qa" >> $GITHUB_OUTPUT
+            echo "env_suffix=QA" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/stg" ]]; then
+            echo "environment=stg" >> $GITHUB_OUTPUT
+            echo "env_suffix=STG" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "env_suffix=PROD" >> $GITHUB_OUTPUT
+          else
+            echo "Skipping deploy for non-target branch: ${{ github.ref }}"
+            exit 1
+          fi
+
   build:
+    needs: determine-environment
+    if: success()
     runs-on: ubuntu-latest
     name: Build
+    env:
+      ENV_SUFFIX: ${{ needs.determine-environment.outputs.env_suffix }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,9 +68,9 @@ jobs:
 
       - name: Install and build
         env:
-          VITE_AZURE_AD_TENANT_ID: ${{ secrets.VITE_AZURE_AD_TENANT_ID }}
-          VITE_AZURE_AD_API_SCOPE: ${{ secrets.VITE_AZURE_AD_API_SCOPE }}
-          VITE_AZURE_AD_CLIENT_ID: ${{ secrets.VITE_AZURE_AD_CLIENT_ID }}
+          VITE_AZURE_AD_TENANT_ID: ${{ secrets[format('VITE_AZURE_AD_TENANT_ID_{0}', env.ENV_SUFFIX)] }}
+          VITE_AZURE_AD_API_SCOPE: ${{ secrets[format('VITE_AZURE_AD_API_SCOPE_{0}', env.ENV_SUFFIX)] }}
+          VITE_AZURE_AD_CLIENT_ID: ${{ secrets[format('VITE_AZURE_AD_CLIENT_ID_{0}', env.ENV_SUFFIX)] }}
         run: npm ci && npm run build
 
       - name: Upload client artifact
@@ -79,9 +110,12 @@ jobs:
           path: api-deploy/
 
   deploy_swa:
-    needs: build
+    needs: [determine-environment, build]
+    if: success()
     runs-on: ubuntu-latest
     name: Deploy SWA (frontend)
+    env:
+      ENV_SUFFIX: ${{ needs.determine-environment.outputs.env_suffix }}
     steps:
       - name: Download client artifact
         uses: actions/download-artifact@v4
@@ -93,17 +127,19 @@ jobs:
         id: deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          azure_static_web_apps_api_token: ${{ secrets[format('AZURE_STATIC_WEB_APPS_API_TOKEN_{0}', env.ENV_SUFFIX)] }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: client/dist/
           skip_app_build: true
 
   deploy_api:
-    needs: build
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [determine-environment, build]
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && success()
     runs-on: ubuntu-latest
     name: Deploy Function App (API)
+    env:
+      ENV_SUFFIX: ${{ needs.determine-environment.outputs.env_suffix }}
     steps:
       - name: Download api artifact
         uses: actions/download-artifact@v4
@@ -114,14 +150,14 @@ jobs:
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-id: ${{ secrets[format('AZURE_CLIENT_ID_{0}', env.ENV_SUFFIX)] }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
         with:
-          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
+          app-name: ${{ secrets[format('AZURE_FUNCTIONAPP_NAME_{0}', env.ENV_SUFFIX)] }}
           package: api-deploy/
 
   close_pull_request:

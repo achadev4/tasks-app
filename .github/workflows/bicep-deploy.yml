@@ -82,7 +82,7 @@ jobs:
             --name "bicep-${{ github.run_id }}" \
             --template-file infra/main.bicep \
             --parameters \
-              environment="${{ github.event.inputs.environment }}" \
+              deployEnvironment="${{ github.event.inputs.environment }}" \
               namePrefix="${{ github.event.inputs.name_prefix }}" \
               sqlConnectionString="${SQL_CONNECTION_STRING}" \
               apiAppClientId="${API_APP_CLIENT_ID}"

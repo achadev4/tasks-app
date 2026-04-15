@@ -3,6 +3,9 @@ targetScope = 'resourceGroup'
 @description('Prefix for resource names')
 param namePrefix string = 'tasks'
 
+@description('Environment (dev, qa, stg, or prod)')
+param deployEnvironment string
+
 @description('Primary Azure region')
 param location string = resourceGroup().location
 
@@ -15,13 +18,14 @@ param apiAppClientId string
 @description('SQL connection string for the manually-created Azure SQL free-tier database')
 param sqlConnectionString string
 
-var uniqueSuffix = uniqueString(resourceGroup().id, namePrefix)
-var storageName = toLower('${take(namePrefix, 8)}st${uniqueSuffix}')
-var funcAppName = '${namePrefix}-func-${uniqueSuffix}'
-var swaName = '${namePrefix}-swa-${uniqueSuffix}'
-var kvName = 'kv${uniqueString(resourceGroup().id, namePrefix)}'
-var lawName = '${namePrefix}-law-${uniqueSuffix}'
-var aiName = '${namePrefix}-ai-${uniqueSuffix}'
+var envPrefix = '${namePrefix}-${deployEnvironment}'
+var uniqueSuffix = uniqueString(resourceGroup().id, envPrefix)
+var storageName = toLower('${take(envPrefix, 8)}st${uniqueSuffix}')
+var funcAppName = '${envPrefix}-func-${uniqueSuffix}'
+var swaName = '${envPrefix}-swa-${uniqueSuffix}'
+var kvName = 'kv${uniqueString(resourceGroup().id, envPrefix)}'
+var lawName = '${envPrefix}-law-${uniqueSuffix}'
+var aiName = '${envPrefix}-ai-${uniqueSuffix}'
 var blobContainerName = 'task-attachments'
 
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {

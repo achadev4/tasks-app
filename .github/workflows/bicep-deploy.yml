@@ -13,9 +13,8 @@ on:
           - stg
           - prod
       resource_group:
-        description: Azure resource group name (created if it does not exist)
+        description: Azure resource group name (created if it does not exist) - e.g., rg-tasks-dev, rg-tasks-qa, rg-tasks-stg, rg-tasks-prod
         required: true
-        default: rg-tasks-prod
         type: string
       location:
         description: Azure region for the resource group (if creating) and deployment

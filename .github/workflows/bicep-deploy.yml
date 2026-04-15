@@ -13,9 +13,8 @@ on:
           - stg
           - prod
       resource_group:
-        description: Azure resource group name (created if it does not exist)
+        description: Azure resource group name (created if it does not exist) - e.g., rg-tasks-dev, rg-tasks-qa, rg-tasks-stg, rg-tasks-prod
         required: true
-        default: rg-tasks-prod
         type: string
       location:
         description: Azure region for the resource group (if creating) and deployment
@@ -82,7 +81,7 @@ jobs:
             --name "bicep-${{ github.run_id }}" \
             --template-file infra/main.bicep \
             --parameters \
-              environment="${{ github.event.inputs.environment }}" \
+              deployEnvironment="${{ github.event.inputs.environment }}" \
               namePrefix="${{ github.event.inputs.name_prefix }}" \
               sqlConnectionString="${SQL_CONNECTION_STRING}" \
               apiAppClientId="${API_APP_CLIENT_ID}"

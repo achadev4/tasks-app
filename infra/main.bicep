@@ -4,7 +4,7 @@ targetScope = 'resourceGroup'
 param namePrefix string = 'tasks'
 
 @description('Environment (dev, qa, stg, or prod)')
-param environment string = 'prod'
+param deployEnvironment string
 
 @description('Primary Azure region')
 param location string = resourceGroup().location
@@ -18,7 +18,7 @@ param apiAppClientId string
 @description('SQL connection string for the manually-created Azure SQL free-tier database')
 param sqlConnectionString string
 
-var envPrefix = '${namePrefix}-${environment}'
+var envPrefix = '${namePrefix}-${deployEnvironment}'
 var uniqueSuffix = uniqueString(resourceGroup().id, envPrefix)
 var storageName = toLower('${take(envPrefix, 8)}st${uniqueSuffix}')
 var funcAppName = '${envPrefix}-func-${uniqueSuffix}'

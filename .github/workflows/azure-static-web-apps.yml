@@ -114,6 +114,7 @@ jobs:
     if: success()
     runs-on: ubuntu-latest
     name: Deploy SWA (frontend)
+    environment: ${{ needs.determine-environment.outputs.environment }}
     env:
       ENV_SUFFIX: ${{ needs.determine-environment.outputs.env_suffix }}
     steps:
@@ -138,6 +139,7 @@ jobs:
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && success()
     runs-on: ubuntu-latest
     name: Deploy Function App (API)
+    environment: ${{ needs.determine-environment.outputs.environment }}
     env:
       ENV_SUFFIX: ${{ needs.determine-environment.outputs.env_suffix }}
     steps:

@@ -20,7 +20,8 @@ param sqlConnectionString string
 
 var envPrefix = '${namePrefix}-${deployEnvironment}'
 var uniqueSuffix = uniqueString(resourceGroup().id, envPrefix)
-var storageName = toLower('${take(envPrefix, 8)}st${uniqueSuffix}')
+var storageNamePrefix = '${namePrefix}${take(deployEnvironment, 1)}'
+var storageName = toLower('${storageNamePrefix}${take(uniqueSuffix, 18)}')
 var funcAppName = '${envPrefix}-func-${uniqueSuffix}'
 var swaName = '${envPrefix}-swa-${uniqueSuffix}'
 var kvName = 'kv${uniqueString(resourceGroup().id, envPrefix)}'

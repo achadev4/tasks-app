@@ -167,6 +167,16 @@ for i in 1 2 3 4 5; do
 done
 ok "API identifier URI set: ${API_ID_URI}"
 
+# Issue v2 access tokens (aud = GUID, iss = login.microsoftonline.com/.../v2.0)
+# Required because the Function App validates v2-format tokens.
+API_APP_OBJECT_ID=$(az ad app show --id "$API_APP_ID" --query id -o tsv)
+az rest --method PATCH \
+  --uri "https://graph.microsoft.com/v1.0/applications/${API_APP_OBJECT_ID}" \
+  --headers 'Content-Type=application/json' \
+  --body '{"api":{"requestedAccessTokenVersion":2}}' \
+  --output none
+ok "API app set to issue v2 access tokens"
+
 # Expose the access_as_user scope
 SCOPE_ID=$(az ad app show --id "$API_APP_ID" \
   --query "api.oauth2PermissionScopes[?value=='access_as_user'].id" -o tsv 2>/dev/null || true)

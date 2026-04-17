@@ -1,0 +1,73 @@
+name: Bootstrap Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      name_prefix:
+        description: Resource name prefix (see infra/main.bicep)
+        required: true
+        default: tasks
+        type: string
+      environment:
+        description: Target environment (dev, qa, stg, prod)
+        required: true
+        default: dev
+        type: string
+      location:
+        description: Azure region for the resource group (if creating) and deployment
+        required: true
+        default: centralus
+        type: string
+      sql_admin_login:
+        description: Admin username for SQL Server
+        required: true
+        default: tasksAdmin
+        type: string
+      sql_admin_password:
+        description: Admin password for SQL Server (must meet Azure requirements)
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap Azure environment
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install sqlcmd
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
+
+      - name: Run bootstrap-environment.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SQL_ADMIN_PASSWORD: ${{ github.event.inputs.sql_admin_password }}
+        run: |
+          chmod +x ./scripts/bootstrap-environment.sh
+          ./scripts/bootstrap-environment.sh \
+            --environment "${{ github.event.inputs.environment }}" \
+            --location "${{ github.event.inputs.location }}" \
+            --resource-group "rg-${{ github.event.inputs.name_prefix }}-${{ github.event.inputs.environment }}" \
+            --name-prefix "${{ github.event.inputs.name_prefix }}" \
+            --sql-admin-login "${{ github.event.inputs.sql_admin_login }}" \
+            --sql-admin-password "${SQL_ADMIN_PASSWORD}" \
+            --github-repo "${{ github.repository }}" \
+            --github-branch "${{ github.ref_name }}"

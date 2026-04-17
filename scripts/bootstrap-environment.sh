@@ -513,26 +513,8 @@ else
     --ref "$GITHUB_BRANCH" \
     --field environment="$ENVIRONMENT"
   ok "Code deployment workflow triggered"
-
-  # Poll for the newly-queued run (workflow_dispatch takes a moment to register)
-  SWA_RUN_ID=""
-  for i in $(seq 1 12); do
-    sleep 5
-    SWA_RUN_ID=$(gh run list --repo "$GITHUB_REPO" \
-      --workflow "azure-static-web-apps.yml" \
-      --limit 1 --json databaseId,status \
-      --jq '.[0] | select(.status != "completed") | .databaseId' 2>/dev/null || true)
-    [[ -n "$SWA_RUN_ID" ]] && break
-  done
-
-  if [[ -z "$SWA_RUN_ID" ]]; then
-    warn "Could not find the queued SWA run — continuing without waiting."
-    echo "  Monitor at: https://github.com/${GITHUB_REPO}/actions"
-  else
-    info "Waiting for SWA deployment to finish (run #${SWA_RUN_ID})..."
-    gh run watch "$SWA_RUN_ID" --repo "$GITHUB_REPO" --exit-status
-    ok "SWA deployment completed"
-  fi
+  echo ""
+  echo "  Monitor at: https://github.com/${GITHUB_REPO}/actions"
 fi
 
 # ──────────────────────────────────────────────────────────────────────────────

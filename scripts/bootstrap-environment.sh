@@ -494,16 +494,17 @@ fi
 # ──────────────────────────────────────────────────────────────────────────────
 # Phase 9: Trigger code deployment
 # ──────────────────────────────────────────────────────────────────────────────
-if [[ "$SKIP_CODE_DEPLOY" == "false" ]]; then
-  info "Phase 9: Triggering code deployment"
+if [[ "$SKIP_CODE_DEPLOY" == "true" ]]; then
+  info "Phase 9: Skipping code deployment (--skip-code-deploy)"
+else
+  info "Phase 9: Triggering code deployment for '${ENVIRONMENT}'"
   gh workflow run "azure-static-web-apps.yml" \
     --repo "$GITHUB_REPO" \
-    --ref "$GITHUB_BRANCH"
+    --ref "$GITHUB_BRANCH" \
+    --field environment="$ENVIRONMENT"
   ok "Code deployment workflow triggered"
   echo ""
   echo "  Monitor at: https://github.com/${GITHUB_REPO}/actions"
-else
-  info "Phase 9: Skipping code deployment (--skip-code-deploy)"
 fi
 
 # ──────────────────────────────────────────────────────────────────────────────

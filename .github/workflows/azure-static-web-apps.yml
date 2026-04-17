@@ -3,46 +3,25 @@ name: Azure Static Web Apps CI/CD
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: The branch or tag to deploy
-        required: false
-        default: main
-        type: string
+      environment:
+        description: Target environment (dev, qa, stg, prod)
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - stg
+          - prod
 
 permissions:
   id-token: write
   contents: read
-  pull-requests: write
 
 jobs:
-  determine-environment:
-    runs-on: ubuntu-latest
-    name: Determine target environment
-    outputs:
-      environment: ${{ steps.set-env.outputs.environment }}
-    steps:
-      - name: Determine environment from branch
-        id: set-env
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
-            echo "environment=dev" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/qa" ]]; then
-            echo "environment=qa" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/stg" ]]; then
-            echo "environment=stg" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "environment=prod" >> $GITHUB_OUTPUT
-          else
-            echo "Skipping deploy for non-target branch: ${{ github.ref }}"
-            exit 1
-          fi
-
   build:
-    needs: determine-environment
-    if: success()
     runs-on: ubuntu-latest
     name: Build
-    environment: ${{ needs.determine-environment.outputs.environment }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - uses: actions/checkout@v4
 
@@ -97,11 +76,11 @@ jobs:
           path: api-deploy/
 
   deploy_swa:
-    needs: [determine-environment, build]
+    needs: build
     if: success()
     runs-on: ubuntu-latest
     name: Deploy SWA (frontend)
-    environment: ${{ needs.determine-environment.outputs.environment }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Download client artifact
         uses: actions/download-artifact@v4
@@ -120,11 +99,11 @@ jobs:
           skip_app_build: true
 
   deploy_api:
-    needs: [determine-environment, build]
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && success()
+    needs: build
+    if: success()
     runs-on: ubuntu-latest
     name: Deploy Function App (API)
-    environment: ${{ needs.determine-environment.outputs.environment }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Download api artifact
         uses: actions/download-artifact@v4
@@ -144,14 +123,3 @@ jobs:
         with:
           app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
           package: api-deploy/
-
-  close_pull_request:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close SWA PR environment
-    steps:
-      - name: Close
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          action: close

@@ -40,6 +40,7 @@ SQL_ADMIN_LOGIN=""
 SQL_ADMIN_PASSWORD=""
 GITHUB_REPO="achadev4/tasks-app"
 GITHUB_BRANCH="main"
+DEPLOYER_CLIENT_ID="${AZURE_CLIENT_ID:-}"
 SKIP_SQL_SCHEMA=false
 SKIP_CODE_DEPLOY=false
 
@@ -54,13 +55,14 @@ Required:
   --sql-admin-password SQL server admin password
 
 Optional:
-  --location          Azure region (default: eastus)
-  --name-prefix       Resource name prefix (default: tasks)
-  --github-repo       GitHub owner/repo (default: achadev4/tasks-app)
-  --github-branch     Branch for OIDC federation & deploy (default: main)
-  --skip-sql-schema   Skip SQL schema deployment
-  --skip-code-deploy  Skip triggering the code deployment workflow
-  -h, --help          Show this help
+  --location            Azure region (default: eastus)
+  --name-prefix         Resource name prefix (default: tasks)
+  --github-repo         GitHub owner/repo (default: achadev4/tasks-app)
+  --github-branch       Branch for OIDC federation & deploy (default: main)
+  --deployer-client-id  Existing deployer app client ID (defaults to \$AZURE_CLIENT_ID)
+  --skip-sql-schema     Skip SQL schema deployment
+  --skip-code-deploy    Skip triggering the code deployment workflow
+  -h, --help            Show this help
 EOF
   exit 1
 }
@@ -75,6 +77,7 @@ while [[ $# -gt 0 ]]; do
     --sql-admin-password) SQL_ADMIN_PASSWORD="$2"; shift 2;;
     --github-repo)      GITHUB_REPO="$2"; shift 2;;
     --github-branch)    GITHUB_BRANCH="$2"; shift 2;;
+    --deployer-client-id) DEPLOYER_CLIENT_ID="$2"; shift 2;;
     --skip-sql-schema)  SKIP_SQL_SCHEMA=true; shift;;
     --skip-code-deploy) SKIP_CODE_DEPLOY=true; shift;;
     -h|--help)          usage;;
@@ -89,6 +92,11 @@ for var in ENVIRONMENT RESOURCE_GROUP SQL_ADMIN_LOGIN SQL_ADMIN_PASSWORD; do
     usage
   fi
 done
+
+if [[ -z "$DEPLOYER_CLIENT_ID" ]]; then
+  echo "Error: deployer client ID is required. Pass --deployer-client-id or set AZURE_CLIENT_ID."
+  usage
+fi
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -207,53 +215,12 @@ az rest --method PATCH \
 ok "SPA pre-authorized on API app"
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Phase 2: Entra ID — GitHub OIDC deployer app
+# Phase 2: Ensure federated credential for this environment on the deployer
 # ──────────────────────────────────────────────────────────────────────────────
-info "Phase 2: Creating GitHub Actions deployer app + OIDC federation"
+info "Phase 2: Ensuring OIDC federated credential on existing deployer (${DEPLOYER_CLIENT_ID})"
 
-DEPLOYER_APP_NAME="github-actions-${NAME_PREFIX}-${ENVIRONMENT}"
+DEPLOYER_OBJECT_ID=$(az ad app show --id "$DEPLOYER_CLIENT_ID" --query id -o tsv)
 
-DEPLOYER_APP_ID=$(az ad app list --display-name "$DEPLOYER_APP_NAME" --query "[0].appId" -o tsv 2>/dev/null || true)
-
-if [[ -z "$DEPLOYER_APP_ID" || "$DEPLOYER_APP_ID" == "None" ]]; then
-  DEPLOYER_APP_ID=$(az ad app create \
-    --display-name "$DEPLOYER_APP_NAME" \
-    --query appId -o tsv)
-  ok "Created deployer app: $DEPLOYER_APP_ID"
-else
-  ok "Deployer app already exists: $DEPLOYER_APP_ID"
-fi
-
-# Create service principal
-DEPLOYER_SP_ID=$(az ad sp show --id "$DEPLOYER_APP_ID" --query id -o tsv 2>/dev/null || true)
-if [[ -z "$DEPLOYER_SP_ID" ]]; then
-  DEPLOYER_SP_ID=$(az ad sp create --id "$DEPLOYER_APP_ID" --query id -o tsv)
-  ok "Created deployer service principal"
-else
-  ok "Deployer SP already exists"
-fi
-
-# Federated credential for the target branch
-DEPLOYER_OBJECT_ID=$(az ad app show --id "$DEPLOYER_APP_ID" --query id -o tsv)
-FED_CRED_NAME="github-${GITHUB_BRANCH}"
-
-EXISTING_CRED=$(az ad app federated-credential list --id "$DEPLOYER_OBJECT_ID" \
-  --query "[?name=='${FED_CRED_NAME}'].name" -o tsv 2>/dev/null || true)
-
-if [[ -z "$EXISTING_CRED" ]]; then
-  az ad app federated-credential create --id "$DEPLOYER_OBJECT_ID" \
-    --parameters "{
-      \"name\": \"${FED_CRED_NAME}\",
-      \"issuer\": \"https://token.actions.githubusercontent.com\",
-      \"subject\": \"repo:${GITHUB_REPO}:ref:refs/heads/${GITHUB_BRANCH}\",
-      \"audiences\": [\"api://AzureADTokenExchange\"]
-    }" --output none
-  ok "Federated credential created for branch '${GITHUB_BRANCH}'"
-else
-  ok "Federated credential '${FED_CRED_NAME}' already exists"
-fi
-
-# Also add a federated credential for the GitHub environment (needed by the workflow)
 ENV_CRED_NAME="github-env-${ENVIRONMENT}"
 EXISTING_ENV_CRED=$(az ad app federated-credential list --id "$DEPLOYER_OBJECT_ID" \
   --query "[?name=='${ENV_CRED_NAME}'].name" -o tsv 2>/dev/null || true)
@@ -283,14 +250,14 @@ RG_ID=$(az group show --name "$RESOURCE_GROUP" --query id -o tsv)
 
 # Assign Contributor on the resource group to the deployer SP
 EXISTING_ROLE=$(az role assignment list \
-  --assignee "$DEPLOYER_APP_ID" \
+  --assignee "$DEPLOYER_CLIENT_ID" \
   --scope "$RG_ID" \
   --role "Contributor" \
   --query "[0].id" -o tsv 2>/dev/null || true)
 
 if [[ -z "$EXISTING_ROLE" ]]; then
   az role assignment create \
-    --assignee "$DEPLOYER_APP_ID" \
+    --assignee "$DEPLOYER_CLIENT_ID" \
     --role "Contributor" \
     --scope "$RG_ID" \
     --output none
@@ -408,10 +375,7 @@ set_env_secret() {
   ok "Set env secret: ${name}"
 }
 
-set_env_secret "AZURE_CLIENT_ID"              "$DEPLOYER_APP_ID"
-set_env_secret "AZURE_TENANT_ID"              "$TENANT_ID"
-set_env_secret "AZURE_SUBSCRIPTION_ID"        "$SUBSCRIPTION_ID"
-set_env_secret "SQL_CONNECTION_STRING"         "$SQL_CONNECTION_STRING"
+set_env_secret "SQL_CONNECTION_STRING"        "$SQL_CONNECTION_STRING"
 set_env_secret "API_APP_CLIENT_ID"            "$API_APP_ID"
 set_env_secret "VITE_AZURE_AD_TENANT_ID"      "$TENANT_ID"
 set_env_secret "VITE_AZURE_AD_CLIENT_ID"      "$SPA_APP_ID"
@@ -542,7 +506,7 @@ echo "║                    Bootstrap Complete!                      ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║  API App Client ID:  ${API_APP_ID}"
 echo "║  SPA App Client ID:  ${SPA_APP_ID}"
-echo "║  Deployer Client ID: ${DEPLOYER_APP_ID}"
+echo "║  Deployer Client ID: ${DEPLOYER_CLIENT_ID}"
 echo "║  SQL Server:         ${SQL_FQDN}"
 if [[ -n "${SWA_HOSTNAME:-}" ]]; then
 echo "║  SWA URL:            https://${SWA_HOSTNAME}"

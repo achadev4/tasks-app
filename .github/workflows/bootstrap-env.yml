@@ -36,7 +36,6 @@ jobs:
   bootstrap:
     name: Bootstrap Azure environment
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,6 +58,7 @@ jobs:
       - name: Run bootstrap-environment.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           SQL_ADMIN_PASSWORD: ${{ github.event.inputs.sql_admin_password }}
         run: |
           chmod +x ./scripts/bootstrap-environment.sh

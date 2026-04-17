@@ -57,7 +57,7 @@ jobs:
 
       - name: Run bootstrap-environment.sh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           SQL_ADMIN_PASSWORD: ${{ github.event.inputs.sql_admin_password }}
         run: |

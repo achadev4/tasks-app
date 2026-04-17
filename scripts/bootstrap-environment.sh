@@ -105,6 +105,20 @@ info()  { echo -e "\n\033[1;34m▸ $*\033[0m"; }
 ok()    { echo -e "  \033[1;32m✓ $*\033[0m"; }
 warn()  { echo -e "  \033[1;33m⚠ $*\033[0m"; }
 
+# Wait for Entra ID replication of a newly created app (up to 60s)
+wait_for_app() {
+  local app_id="$1"
+  local retries=12
+  for i in $(seq 1 $retries); do
+    if az ad app show --id "$app_id" --query id -o tsv &>/dev/null; then
+      return 0
+    fi
+    sleep 5
+  done
+  warn "App $app_id did not appear after propagation wait"
+  return 1
+}
+
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 TENANT_ID=$(az account show --query tenantId -o tsv)
 GITHUB_ORG=$(echo "$GITHUB_REPO" | cut -d/ -f1)
@@ -138,15 +152,20 @@ if [[ -z "$API_APP_ID" || "$API_APP_ID" == "None" ]]; then
     --sign-in-audience "AzureADMyOrg" \
     --query appId -o tsv)
   ok "Created API app: $API_APP_ID"
+  wait_for_app "$API_APP_ID"
 else
   ok "API app already exists: $API_APP_ID"
 fi
 
-# Set the Application ID URI
+# Set the Application ID URI (retry — newly created apps have replication lag)
 API_ID_URI="api://${API_APP_ID}"
-az ad app update --id "$API_APP_ID" \
-  --identifier-uris "$API_ID_URI" \
-  --output none 2>/dev/null || true
+for i in 1 2 3 4 5; do
+  if az ad app update --id "$API_APP_ID" --identifier-uris "$API_ID_URI" --output none 2>/dev/null; then
+    break
+  fi
+  sleep 5
+done
+ok "API identifier URI set: ${API_ID_URI}"
 
 # Expose the access_as_user scope
 SCOPE_ID=$(az ad app show --id "$API_APP_ID" \
@@ -185,6 +204,7 @@ if [[ -z "$SPA_APP_ID" || "$SPA_APP_ID" == "None" ]]; then
     --enable-access-token-issuance true \
     --query appId -o tsv)
   ok "Created SPA app: $SPA_APP_ID"
+  wait_for_app "$SPA_APP_ID"
 else
   ok "SPA app already exists: $SPA_APP_ID"
 fi
